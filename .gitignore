@@ -1,0 +1,32 @@
+# https://dart.dev/guides/libraries/private-files
+# Created by `dart pub`
+.dart_tool/
+
+# Files and directories created by pub
+.packages
+.pub/
+pubspec.lock
+
+# Directory created by dartdoc
+doc/api/
+
+# JavaScript
+*.js
+*.js.map
+*.js.deps
+
+# Editor-specific
+.vscode/
+.idea/
+*.iml
+
+# Mac
+.DS_Store
+
+# Build directory
+build/
+
+# Example build artifacts
+example/web/*.js
+example/web/*.js.map
+example/web/*.js.deps

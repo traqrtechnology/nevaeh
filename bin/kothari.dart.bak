@@ -1,0 +1,380 @@
+#!/usr/bin/env dart
+
+import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+import 'package:archive/archive.dart';
+
+/// Nevaeh UI CLI Tool
+/// 
+/// Usage:
+///   nevaeh fonts          - Download and install Kothari UI fonts
+///   nevaeh build          - Build CSS from Dart files
+///   nevaeh compile        - Compile Dart to JavaScript
+///   nevaeh dev            - Build CSS and compile JS (full dev workflow)
+void main(List<String> args) async {
+  if (args.isEmpty) {
+    _printUsage();
+    exit(0);
+  }
+
+  final command = args[0];
+
+  switch (command) {
+    case 'fonts':
+      _printFontsBanner();
+      await _downloadFonts();
+      break;
+    case 'build':
+      _printBuildBanner();
+      await _buildCSS();
+      break;
+    case 'compile':
+      _printCompileBanner();
+      await _compileJS();
+      break;
+    case 'dev':
+      _printDevBanner();
+      await _buildCSS();
+      await _compileJS();
+      _printSuccessBanner();
+      print('   Run: python3 -m http.server 8080');
+      print('   Then open: http://localhost:8080');
+      break;
+    case 'help':
+    case '--help':
+    case '-h':
+      _printUsage();
+      break;
+    default:
+      _printErrorBanner();
+      print('❌ Unknown command: $command');
+      print('');
+      _printUsage();
+      exit(1);
+  }
+}
+
+// ANSI Color Codes
+const String reset = '\x1B[0m';
+const String bright = '\x1B[1m';
+const String red = '\x1B[31m';
+const String green = '\x1B[32m';
+const String yellow = '\x1B[33m';
+const String blue = '\x1B[34m';
+const String magenta = '\x1B[35m';
+const String cyan = '\x1B[36m';
+const String white = '\x1B[37m';
+
+int _calculateAge() {
+  final now = DateTime.now();
+  // Birthday: July 13th - need to know birth year
+  // Assuming born in 2017 (7 years old in 2024)
+  // You can adjust this if needed
+  final birthYear = 2017;
+  final birthday = DateTime(birthYear, 7, 13);
+  
+  int age = now.year - birthYear;
+  
+  // Adjust if birthday hasn't occurred yet this year
+  if (now.month < 7 || (now.month == 7 && now.day < 13)) {
+    age--;
+  }
+  
+  return age;
+}
+
+void _printUsage() {
+  final age = _calculateAge();
+  print('');
+  print('${bright}${magenta}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${magenta}║${reset}                                                           ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}    _   _            ${yellow}*${reset}  ${bright}${cyan}    _    ${yellow}*${reset}     ${bright}${cyan}    _   ${yellow}*${reset}      ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}   | \\ | | ___  __ _ ${yellow}*${reset}  ${bright}${cyan}   | |_ ${yellow}*${reset}     ${bright}${cyan}   | |_ ${yellow}*${reset}      ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}   |  \\| |/ _ \\/ _` |${yellow}*${reset}  ${bright}${cyan}   | __|${yellow}*${reset}     ${bright}${cyan}   | __|${yellow}*${reset}      ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}   | |\\  |  __/ (_| |${yellow}*${reset}  ${bright}${cyan}   | |_ ${yellow}*${reset}     ${bright}${cyan}   | |_ ${yellow}*${reset}      ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}   |_| \\_|\\___|\\__,_|${yellow}*${reset}  ${bright}${cyan}    \\__|${yellow}*${reset}     ${bright}${cyan}    \\__|${yellow}*${reset}      ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}                                                           ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${white}Made with ${red}❤️${reset}  ${bright}${white}for a special $age-year-old${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}                                                           ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+  print('${bright}${cyan}Commands:${reset}');
+  print('  ${green}nevaeh fonts${reset}      ${yellow}✨${reset} Download and install Kothari UI fonts');
+  print('  ${green}nevaeh build${reset}      ${yellow}🎨${reset} Build CSS from Dart files');
+  print('  ${green}nevaeh compile${reset}    ${yellow}⚡${reset} Compile Dart to JavaScript');
+  print('  ${green}nevaeh dev${reset}        ${yellow}🚀${reset} Full dev workflow (build + compile)');
+  print('  ${green}nevaeh help${reset}       ${yellow}💡${reset} Show this help message');
+  print('');
+}
+
+void _printFontsBanner() {
+  print('');
+  print('${bright}${magenta}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${magenta}║${reset}                                                           ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${yellow}    ╔═══╗  ╔═══╗  ╦  ╔╗   ╔═══╗  ╦  ╔╗${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${yellow}    ║ ╦ ║  ║ ╦ ║  ║  ╠╩╗  ║ ╦ ║  ║  ╠╩╗${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${yellow}    ╚═╝ ╚══╝ ╚═╝ ╩  ╚═╝  ╚═╝ ╚══╝ ╩  ╚═╝${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${cyan}  ${yellow}*${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}║${reset}                                                           ${bright}${magenta}║${reset}');
+  print('${bright}${magenta}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+}
+
+void _printBuildBanner() {
+  print('');
+  print('${bright}${blue}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${blue}║${reset}                                                           ${bright}${blue}║${reset}');
+  print('${bright}${blue}║${reset}  ${bright}${yellow}    ╔╗   ╔╗   ╦  ╔╗   ╦╔═  ╔╦╗${reset}  ${bright}${blue}║${reset}');
+  print('${bright}${blue}║${reset}  ${bright}${yellow}    ╠╩╗  ║║   ║  ╠╩╗  ╠╩╗   ║${reset}  ${bright}${blue}║${reset}');
+  print('${bright}${blue}║${reset}  ${bright}${yellow}    ╚═╝  ╚╝   ╩  ╚═╝  ╩╚═   ╩${reset}  ${bright}${blue}║${reset}');
+  print('${bright}${blue}║${reset}                                                           ${bright}${blue}║${reset}');
+  print('${bright}${blue}║${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${blue}║${reset}');
+  print('${bright}${blue}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+}
+
+void _printCompileBanner() {
+  print('');
+  print('${bright}${green}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${green}║${reset}                                                           ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${yellow}    ╔═╗ ╔═╗ ╔╗╗ ╔╗╗ ╦  ╔╗   ╔═══╗  ╦  ╔╗${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${yellow}    ║ ║ ║ ║ ║║║ ║║║ ║  ╠╩╗  ║ ╦ ║  ║  ╠╩╗${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${yellow}    ╚═╝ ╚═╝ ╝╚╝ ╝╚╝ ╩  ╚═╝  ╚═╝ ╚══╝ ╩  ╚═╝${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}                                                           ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${cyan}    ${yellow}*${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+}
+
+void _printDevBanner() {
+  print('');
+  print('${bright}${cyan}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${cyan}║${reset}                                                           ${bright}${cyan}║${reset}');
+  print('${bright}${cyan}║${reset}  ${bright}${yellow}    ╔╦╗  ╔═══╗  ╦  ╔╗${reset}  ${bright}${cyan}║${reset}');
+  print('${bright}${cyan}║${reset}  ${bright}${yellow}     ║   ║ ╦ ║  ║  ╠╩╗${reset}  ${bright}${cyan}║${reset}');
+  print('${bright}${cyan}║${reset}  ${bright}${yellow}     ╩   ╚═╝ ╚══╝ ╩  ╚═╝${reset}  ${bright}${cyan}║${reset}');
+  print('${bright}${cyan}║${reset}                                                           ${bright}${cyan}║${reset}');
+  print('${bright}${cyan}║${reset}  ${bright}${red}    ${yellow}❤️${reset}  ${bright}${red}    ${yellow}⭐${reset}  ${bright}${red}    ${yellow}✨${reset}  ${bright}${red}    ${yellow}🌟${reset}  ${bright}${red}    ${yellow}💫${reset}  ${bright}${red}    ${yellow}⭐${reset}  ${bright}${red}    ${yellow}✨${reset}  ${bright}${cyan}║${reset}');
+  print('${bright}${cyan}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+}
+
+void _printSuccessBanner() {
+  print('');
+  print('${bright}${green}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${green}║${reset}                                                           ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${yellow}    ╔═╗ ╔╗   ╔═╗ ╔═╗ ╔╗╗ ╔═╗ ╔═╗ ╦${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${yellow}    ╠═╝ ╠╩╗  ║ ║ ║ ║ ║║║ ╠═╝ ╠═╣ ║${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${yellow}    ╩   ╚═╝  ╚═╝ ╚═╝ ╝╚╝ ╩   ╩ ╩ ╩${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}                                                           ${bright}${green}║${reset}');
+  print('${bright}${green}║${reset}  ${bright}${red}    ${yellow}❤️${reset}  ${bright}${red}    ${yellow}⭐${reset}  ${bright}${red}    ${yellow}✨${reset}  ${bright}${red}    ${yellow}🌟${reset}  ${bright}${red}    ${yellow}💫${reset}  ${bright}${red}    ${yellow}⭐${reset}  ${bright}${red}    ${yellow}✨${reset}  ${bright}${green}║${reset}');
+  print('${bright}${green}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+  print('${bright}${green}✨ Development build complete!${reset}');
+}
+
+void _printErrorBanner() {
+  print('');
+  print('${bright}${red}╔═══════════════════════════════════════════════════════════╗${reset}');
+  print('${bright}${red}║${reset}                                                           ${bright}${red}║${reset}');
+  print('${bright}${red}║${reset}  ${bright}${yellow}    ╔═╗ ╔╗   ╔═╗ ╔╗   ╔═╗ ╦  ╔╗${reset}  ${bright}${red}║${reset}');
+  print('${bright}${red}║${reset}  ${bright}${yellow}    ╠═╝ ╠╩╗  ║ ║ ╠╩╗  ╠═╝ ║  ╠╩╗${reset}  ${bright}${red}║${reset}');
+  print('${bright}${red}║${reset}  ${bright}${yellow}    ╩   ╚═╝  ╚═╝ ╚═╝  ╩   ╩  ╚═╝${reset}  ${bright}${red}║${reset}');
+  print('${bright}${red}╚═══════════════════════════════════════════════════════════╝${reset}');
+  print('');
+}
+
+Future<void> _downloadFonts() async {
+  print('${bright}${cyan}🎨 Downloading Nevaeh UI Fonts...${reset}\n');
+
+  final latoDir = Directory(path.join('web', 'fonts', 'lato'));
+  final jetbrainsDir = Directory(path.join('web', 'fonts', 'jetbrains-mono'));
+
+  // Create directories
+  latoDir.createSync(recursive: true);
+  jetbrainsDir.createSync(recursive: true);
+
+  print('📁 Created font directories\n');
+
+  // Download JetBrains Mono
+  print('📥 Downloading JetBrains Mono...');
+  try {
+    await _downloadJetBrainsMono(jetbrainsDir);
+    print('✅ JetBrains Mono downloaded successfully!\n');
+  } catch (e) {
+    print('⚠️  Failed to download JetBrains Mono: $e');
+    print('   Please download manually from: https://www.jetbrains.com/lp/mono/\n');
+  }
+
+  // Download Lato
+  print('📥 Downloading Lato...');
+  try {
+    await _downloadLato(latoDir);
+    print('✅ Lato downloaded successfully!\n');
+  } catch (e) {
+    print('⚠️  Failed to download Lato: $e');
+    print('   Please download manually from: https://fonts.google.com/specimen/Lato\n');
+  }
+
+  print('✨ Font setup complete!');
+  print('   Fonts are now self-hosted and will load fast from your domain.');
+  print('   No external dependencies required!');
+}
+
+Future<void> _downloadJetBrainsMono(Directory targetDir) async {
+  // JetBrains Mono GitHub release
+  const version = '2.304';
+  final url = 'https://github.com/JetBrains/JetBrainsMono/releases/download/v$version/JetBrainsMono-$version.zip';
+  
+  print('   Fetching from GitHub...');
+  final response = await http.get(Uri.parse(url));
+  
+  if (response.statusCode != 200) {
+    throw Exception('Failed to download: HTTP ${response.statusCode}');
+  }
+
+  print('   Extracting archive...');
+  final archive = ZipDecoder().decodeBytes(response.bodyBytes);
+  
+  final requiredFiles = [
+    'JetBrainsMono-Regular.woff2',
+    'JetBrainsMono-Medium.woff2',
+    'JetBrainsMono-SemiBold.woff2',
+    'JetBrainsMono-Bold.woff2',
+  ];
+
+  int found = 0;
+  for (final file in archive) {
+    if (file.isFile) {
+      final fileName = path.basename(file.name);
+      if (requiredFiles.contains(fileName)) {
+        final outputFile = File(path.join(targetDir.path, fileName));
+        outputFile.writeAsBytesSync(file.content as List<int>);
+        print('   ✓ $fileName');
+        found++;
+      }
+    }
+  }
+
+  if (found < requiredFiles.length) {
+    throw Exception('Not all required files were found in archive');
+  }
+}
+
+Future<void> _downloadLato(Directory targetDir) async {
+  // Lato from Google Fonts - we'll fetch the CSS and extract woff2 URLs
+  print('   Fetching Lato font information from Google Fonts...');
+  
+  try {
+    // Get the CSS from Google Fonts API
+    final cssUrl = 'https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap';
+    final cssResponse = await http.get(Uri.parse(cssUrl));
+    
+    if (cssResponse.statusCode != 200) {
+      throw Exception('Failed to fetch font CSS');
+    }
+
+    final css = cssResponse.body;
+    
+    // Parse CSS to extract woff2 URLs
+    final woff2Pattern = RegExp(r"url\(([^)]+\.woff2[^)]*)\)");
+    final weightPattern = RegExp(r"font-weight:\s*(\d+)");
+    
+    final fontMap = <String, String>{};
+    final sections = css.split('/*');
+    
+    for (final section in sections) {
+      final weightMatch = weightPattern.firstMatch(section);
+      if (weightMatch != null) {
+        final weight = weightMatch.group(1)!;
+        final urlMatch = woff2Pattern.firstMatch(section);
+        if (urlMatch != null) {
+          var url = urlMatch.group(1)!.replaceAll("'", '').replaceAll('"', '');
+          // Handle relative URLs
+          if (url.startsWith('//')) {
+            url = 'https:$url';
+          } else if (url.startsWith('/')) {
+            url = 'https://fonts.gstatic.com$url';
+          }
+          fontMap[weight] = url;
+        }
+      }
+    }
+
+    // Download each font file
+    final weightNames = {
+      '300': 'Lato-Light',
+      '400': 'Lato-Regular',
+      '700': 'Lato-Bold',
+      '900': 'Lato-Black',
+    };
+
+    for (final entry in fontMap.entries) {
+      final weight = entry.key;
+      final url = entry.value;
+      final name = weightNames[weight] ?? 'Lato-$weight';
+      
+      print('   Downloading $name...');
+      try {
+        final fontResponse = await http.get(Uri.parse(url));
+        if (fontResponse.statusCode == 200) {
+          final fileName = '$name.woff2';
+          final outputFile = File(path.join(targetDir.path, fileName));
+          await outputFile.writeAsBytes(fontResponse.bodyBytes);
+          print('   ✓ $fileName');
+        } else {
+          print('   ⚠️  $name - HTTP ${fontResponse.statusCode}');
+        }
+      } catch (e) {
+        print('   ⚠️  $name - Error: $e');
+      }
+    }
+
+    if (fontMap.length < 4) {
+      print('   ⚠️  Some fonts could not be downloaded automatically.');
+      print('      Please download manually from: https://fonts.google.com/specimen/Lato');
+    }
+  } catch (e) {
+    print('   ⚠️  Automatic download failed: $e');
+    print('   Please download manually:');
+    print('   1. Visit: https://fonts.google.com/specimen/Lato');
+    print('   2. Click "Download family"');
+    print('   3. Extract .woff2 files to: ${targetDir.path}');
+  }
+}
+
+Future<void> _buildCSS() async {
+  print('⚙️  Building CSS...');
+  final result = await Process.run('dart', ['run', 'styles.dart']);
+  stdout.write(result.stdout);
+  if (result.stderr.isNotEmpty) {
+    stderr.write(result.stderr);
+  }
+  if (result.exitCode != 0) {
+    exit(result.exitCode);
+  }
+}
+
+Future<void> _compileJS() async {
+  print('⚙️  Compiling JavaScript...');
+  final result = await Process.run('dart', [
+    'compile',
+    'js',
+    'web/main.dart',
+    '-o',
+    'web/main.js'
+  ]);
+  stdout.write(result.stdout);
+  if (result.stderr.isNotEmpty) {
+    stderr.write(result.stderr);
+  }
+  if (result.exitCode != 0) {
+    exit(result.exitCode);
+  }
+}
+

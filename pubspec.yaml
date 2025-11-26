@@ -1,0 +1,20 @@
+name: nevaeh_ui
+description: A powerful, modern web framework built entirely in Dart. Combines Tailwind-style utility CSS with React-style components.
+version: 1.0.12
+homepage: https://github.com/traqrtechnology/nevaeh
+repository: https://github.com/traqrtechnology/nevaeh
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  path: ^1.9.0
+  http: ^1.2.0
+  archive: ^3.6.1
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
+
+executables:
+  nevaeh: nevaeh
