@@ -48,35 +48,64 @@ Nevaeh UI is a full-featured web framework that brings together:
 
 ## 📦 Installation
 
+### Install from GitHub
+
+Add Nevaeh UI to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  nevaeh_ui:
+    git:
+      url: https://github.com/traqrtechnology/nevaeh.git
+      ref: main
+```
+
+Then install dependencies:
+
+```bash
+dart pub get
+```
+
+### Install via Pub.dev (Coming Soon)
+
+Once published to pub.dev:
+
+```yaml
+dependencies:
+  nevaeh_ui: ^1.0.12
+```
+
 ### Quick Start
 
-1. **Install the Nevaeh CLI globally**:
+1. **Add Nevaeh UI to your project** (see installation methods above)
+
+2. **Install dependencies**:
    ```bash
-   dart pub global activate nevaeh_ui
+   dart pub get
    ```
 
-2. **Create a new project**:
+3. **Install the Nevaeh CLI globally** (optional, for project generation):
+   ```bash
+   dart pub global activate --source git https://github.com/traqrtechnology/nevaeh.git
+   ```
+
+4. **Create a new project** (if using CLI):
    ```bash
    nevaeh new my_app
    cd my_app
    ```
 
-3. **Install dependencies**:
-   ```bash
-   dart pub get
-   ```
-
-4. **Download fonts (optional)**:
+5. **Download fonts (optional)**:
    ```bash
    nevaeh fonts
    ```
 
-5. **Start development server**:
+6. **Start development server**:
    ```bash
    nevaeh server
    ```
 
-6. **Open your browser**:
+7. **Open your browser**:
    ```
    http://localhost:8080
    ```
