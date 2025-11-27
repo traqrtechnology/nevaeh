@@ -236,7 +236,7 @@ Future<KElement> render() async {
       Container(
         children: [
           p(
-            text: "Running on port: $port",
+            text: "Running on port: \${port}",
             classes: ['text-xs', 'sm:text-sm', 'md:text-base', 'text-slate-500', 'mb-2', 'font-mono']
           ),
           p(
